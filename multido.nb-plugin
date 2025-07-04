@@ -1,0 +1,48 @@
+# Step 1: Register subcommand
+_subcommands add "multido"
+
+# Step 2: Describe subcommand
+_subcommands describe "multido" <<HEREDOC
+Usage:
+  nb multido <item_id> <task_range>
+
+Examples:
+  nb multido 27 15-20
+
+Description:
+  Mark a range of tasks as done by calling \`nb do\` for each task.
+HEREDOC
+
+# Step 3: Define command
+_multido() {
+  if [[ $# -lt 2 ]]; then
+    echo "Usage: nb multido <item_id> <task_range>" >&2
+    return 1
+  fi
+
+  local item=$1
+  local range=$2
+
+  if [[ $range =~ ^([0-9]+)-([0-9]+)$ ]]; then
+    local start=${BASH_REMATCH[1]}
+    local end=${BASH_REMATCH[2]}
+  else
+    echo "Invalid range: $range (expected format: start-end)" >&2
+    return 1
+  fi
+
+  echo "📋 Marking tasks $start–$end in item $item..."
+
+  for ((i=start; i<=end; i++)); do
+    if output=$(nb do "$item" "$i" 2>/dev/null); then
+      # Extract just the task content (e.g., "- [x] turn off lights")
+      if summary=$(echo "$output" | grep -o '\[x\] .*'); then
+        printf "✔ %s\n" "$summary"
+      else
+        echo "✔ Task $i marked done"
+      fi
+    else
+      echo "⚠️ Failed to mark task $i in $item"
+    fi
+  done
+}
